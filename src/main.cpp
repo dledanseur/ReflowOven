@@ -38,6 +38,8 @@ Button* downButton;
 
 Label* profileLabel;
 Label* temperatureLabel;
+Label* expectedTemperatureLabel;
+
 Label* stateLabel;
 Label* timeLabel;
 
@@ -49,7 +51,7 @@ void callback() {
 void setup() {
   Serial.begin(115200);
   
-  Log.begin(LOG_LEVEL_NOTICE, &Serial);
+  Log.begin(LOG_LEVEL_VERBOSE, &Serial);
   pinMode(PEN_IRQ, INPUT);
   touchManager.init();
   touchManager.rotate(1);
@@ -62,10 +64,11 @@ void setup() {
   profileLabel = &touchManager.createLabel("", 52, 20);
   touchManager.createLabel("Temp.", 52, 40);
   temperatureLabel = &touchManager.createLabel("", 52, 50);
-  touchManager.createLabel("State", 52, 70);
-  stateLabel = &touchManager.createLabel("", 52, 80);
-  touchManager.createLabel("Time", 52, 100);
-  timeLabel = &touchManager.createLabel("", 52, 110);
+  expectedTemperatureLabel = &touchManager.createLabel("", 52, 60);
+  touchManager.createLabel("State", 52, 80);
+  stateLabel = &touchManager.createLabel("", 52, 90);
+  touchManager.createLabel("Time", 52, 110);
+  timeLabel = &touchManager.createLabel("", 52, 120);
 
   uint16_t calData[5] = { 248, 3871, 214, 3943, 0 };
   touchManager.calibrateTouch(calData[0], calData[1], calData[2], calData[3]);
@@ -73,7 +76,16 @@ void setup() {
 
 void updateScreenStatus() {
   double temp = temperatureManager.getThermcplTemp();
-  temperatureLabel->setText(String(temp));
+
+  if (solderManager.isFinished()) {
+    temperatureLabel->setText(String(temp));
+    expectedTemperatureLabel->setText(String(""));
+  }
+  else {
+    double expectedTemp = solderManager.getExpectedTemperature();
+    temperatureLabel->setText(String(temp) + "/");
+    expectedTemperatureLabel->setText(String(expectedTemp));
+  }
   profileLabel->setText(state.currentProfile->name);
 
   if (solderManager.isFinished()) {
@@ -93,9 +105,10 @@ void updateScreenStatus() {
 
 }
 void loop() {
-  vTaskDelay(200);
+  delay(200);
   temperatureManager.read();
-  vTaskDelay(200);
+  //delay(100);
+  //vTaskDelay(200);
   //uint16_t x,y;
   //tft.getTouchRaw(&x, &y);
   //Log.notice("Raw touch %i, %i" CR, x, y);

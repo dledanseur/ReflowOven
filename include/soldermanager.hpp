@@ -28,6 +28,7 @@ class SolderManager {
     uint8_t ssrPin;
     uint32_t lastLoopMillis=0;
     SolderState solderState;
+    double expectedTemperature=0;
   public:
     SolderManager(TemperatureManager& temperatureManager, 
                   BuzzerManager& buzzerManager, uint8_t ssrPin);
@@ -37,5 +38,6 @@ class SolderManager {
     void loop();
     String getSolderStateString();
     String getTimeString();
+    double getExpectedTemperature();
 };
 #endif

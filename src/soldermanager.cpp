@@ -88,10 +88,16 @@ void SolderManager::loop() {
         Log.verbose("Cool down" CR);
     }
 
+    this->expectedTemperature = expectedValue;
+
     if (m_finished) {
         buzzerManager.triTone(900,-300, 300);
     }
 
+}
+
+double SolderManager::getExpectedTemperature() {
+    return expectedTemperature;
 }
 
 String SolderManager::getSolderStateString() {
