@@ -14,8 +14,15 @@ class TemperatureManager {
     uint8_t clk_pin;
     uint8_t cs_pin;
     uint8_t miso_pin;
-    Adafruit_MAX31855* thermocouple;
-    int32_t readRawData();
+    SPIClass* spi;
+    double readInternal(int32_t v);
+    double readCelsius(int32_t v);
+    double readFarenheit(int32_t v);
+    uint8_t readError(int32_t v);
+    uint32_t spiread32(void);
+
+ public:
+
   public:
     TemperatureManager(uint8_t clk_pin, uint8_t cs_pin, uint8_t miso_pin);
     uint8_t read(void);
