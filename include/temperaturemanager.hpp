@@ -2,10 +2,7 @@
 #define TEMPERATUREMANAGER_HPP
 
 #include <Arduino.h>
-#include <MAX31855.h>
 #include <SPI.h>
-
-#include <Adafruit_MAX31855.h>
 
 class TemperatureManager {
   private:

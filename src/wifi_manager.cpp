@@ -1,7 +1,9 @@
-#include "WiFiMulti.h"
-#include "esp_wifi.h"
-#include "wifi_manager.hpp"
+#include <WiFiMulti.h>
+#include <esp_wifi.h>
+#include <ESPmDNS.h>
+#include <ArduinoLog.h>
 
+#include "wifi_manager.hpp"
 
 WiFiMulti WiFiMulti;
 WiFiClient wifiClient;
@@ -12,17 +14,12 @@ void WifiManager::connect(const char* ssid, const char* password) {
     WiFi.persistent(false);
     WiFiMulti.addAP(ssid, password);
 
-    Serial.printf("Connecting to %s\n",ssid);
-    Serial.flush();
+    Log.notice("Connecting to %s" CR,ssid);
     while (WiFiMulti.run() != WL_CONNECTED) {
         delay(500);
-        Serial.print(".");
     }
-    Serial.println("");
-    Serial.println("WiFi connected");
-    Serial.println("IP address: ");
-    Serial.println(WiFi.localIP());
 
+    Log.notice("WiFi connected. IP address: %s", WiFi.localIP());  
     
     wifi_config_t current_conf;
     esp_wifi_get_config(WIFI_IF_STA, &current_conf);
@@ -30,10 +27,10 @@ void WifiManager::connect(const char* ssid, const char* password) {
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &current_conf));
     esp_wifi_set_ps(WIFI_PS_MAX_MODEM);
 
-    WiFi.onEvent(WiFiEvent);
+    // WiFi.onEvent(WiFiEvent);
 }
 
-void WifiManager::WiFiEvent(WiFiEvent_t event)
+/*void WifiManager::WiFiEvent(WiFiEvent_t event)
 {
   Serial.printf("[WiFi-event] event: %d\n", event);
 
@@ -58,32 +55,32 @@ void WifiManager::WiFiEvent(WiFiEvent_t event)
     break;
   }
 
-}
-
-int status = 0;
-void WifiManager::callback(char* topic, byte* payload, unsigned int length) {
-    /*for (int i=0; i<length; i++) {
-        Serial.print((char) payload[i]);
-    }
-    Serial.println();
-    Serial.flush();*/
-    digitalWrite(32, status);
-    digitalWrite(33, 1-status);
-    status = 1 - status;
-}
+}*/
 
 void WifiManager::loop() {
-  //esp_wifi_start()
   if (WiFi.status() != WL_CONNECTED) {
+    Log.notice("WIFI not connected. Reconnecting" CR);
+    int attempts=0;
     WiFi.reconnect();
-    /*esp_wifi_start();*/
     while (WiFi.status() != WL_CONNECTED) {
+        if (attempts % 10 == 0) {
+          Log.notice("WIFI not connected. Reconnecting" CR);
+          WiFi.reconnect();
+        }
+        attempts ++;
         delay(500);
-        Serial.print(".");
     }
   }
   delay(10);
-  //esp_wifi_stop();
+}
+
+void WifiManager::enableMdns(const char * domain) {
+  if (!MDNS.begin(domain)) {
+      Log.warning("Error setting up MDNS responder!" CR);
+      while(1) {
+          delay(1000);
+      }
+  }
 }
 
 

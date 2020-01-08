@@ -12,9 +12,19 @@ enum SolderState {
   REFLOW
 };
 
+struct Point {
+  uint32_t millis;
+  SolderState state;
+  double expected_temp;
+  double mesured_temperature;
+};
+
 class SolderManagerListener {
-  virtual void newPoint(uint32_t millis, SolderState state, 
-                        double expected_temp, double mesured_temperature);
+  public:
+    virtual void started(String profile);
+    virtual void newPoint(const Point& point);
+    virtual void stopped();
+    virtual ~SolderManagerListener();
 };
 
 class SolderManager {
@@ -29,15 +39,32 @@ class SolderManager {
     uint32_t lastLoopMillis=0;
     SolderState solderState;
     double expectedTemperature=0;
+
+    std::vector<const Point*> m_allPoints;
+    std::vector<SolderManagerListener*> m_listeners;
+
+    void fireNewPoint(Point& p);
+    void fireStarted(String profile);
+    void fireStopped();
+
+    void clearAllPoints();
+
   public:
     SolderManager(TemperatureManager& temperatureManager, 
-                  BuzzerManager& buzzerManager, uint8_t ssrPin);
+                  BuzzerManager& buzzerManager, 
+                  uint8_t ssrPin);
     void start(const Profile* profile);
     void stop();
-    bool isFinished();
+    bool isFinished() const;
     void loop();
-    String getSolderStateString();
-    String getTimeString();
-    double getExpectedTemperature();
+    String getSolderStateString() const;
+    String getTimeString() const;
+    double getExpectedTemperature() const;
+    std::vector<const Point*> getAllPoints() const;
+    void addListener(SolderManagerListener& listener);
+
+    
+
+    ~SolderManager();
 };
 #endif

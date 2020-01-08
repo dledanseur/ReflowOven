@@ -16,12 +16,12 @@ class Command {
 
 class Button {
     private:
-    bool hidden;
     Image& img;
     uint16_t x;
     uint16_t y;
     Display& tft;
     Command& command;
+    bool hidden;
 
 
     public:

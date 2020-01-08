@@ -32,8 +32,7 @@ TemperatureManager::~TemperatureManager() {
     Bit 1   Short to GND
     Bit 0   Open Circuit
 */
-uint32_t TemperatureManager::spiread32(void) { 
-  int i;
+uint32_t TemperatureManager::spiread32(void) {
   uint32_t d = 0;
 
   digitalWrite(cs_pin, LOW);

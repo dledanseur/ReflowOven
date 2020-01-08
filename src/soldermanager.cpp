@@ -8,7 +8,7 @@ SolderManager::SolderManager(TemperatureManager& temperatureManager, BuzzerManag
     pinMode(ssrPin, OUTPUT);
 }
 
-bool SolderManager::isFinished() { 
+bool SolderManager::isFinished() const { 
     return m_finished; 
 };
 
@@ -18,13 +18,15 @@ void SolderManager::start(const Profile* profile) {
     this->m_finished = false;
     this->solderState = WARMUP;
     this->buzzerManager.triTone(300, 300, 300);
-
+    this->fireStarted(profile->name);
+    clearAllPoints();
 }
 
 void SolderManager::stop() {
     digitalWrite(this->ssrPin, LOW);
     this->m_finished = true;
     buzzerManager.triTone(900,-300, 300);
+    this->fireStopped();
 }
 
 void SolderManager::loop() {
@@ -33,6 +35,8 @@ void SolderManager::loop() {
 
     uint32_t now = millis();
     
+    uint32_t millisSinceStartup = now - startTime;
+
     if (now-lastLoopMillis<1000) {  // don't do anything in less than one second
         return;
     }
@@ -41,10 +45,9 @@ void SolderManager::loop() {
 
     auto temp = this->temperatureManager.getThermcplTemp();
 
-
     uint32_t ref = (float) (now - this->warmupEndTime) / 1000;
     
-    double expectedValue;
+    double expectedValue=0;
     if (solderState == WARMUP) {
         expectedValue = this->profile->p_warmup;
         if (temp>expectedValue) {
@@ -89,18 +92,27 @@ void SolderManager::loop() {
     }
 
     this->expectedTemperature = expectedValue;
+    Point *p = new Point();
+    p->expected_temp = expectedValue;
+    p->mesured_temperature = temp;
+    p->state = solderState;
+    p->millis = millisSinceStartup;
+
+    this->m_allPoints.push_back(p);
+    this->fireNewPoint(*p);
 
     if (m_finished) {
         buzzerManager.triTone(900,-300, 300);
+        this->fireStopped();
     }
 
 }
 
-double SolderManager::getExpectedTemperature() {
+double SolderManager::getExpectedTemperature() const {
     return expectedTemperature;
 }
 
-String SolderManager::getSolderStateString() {
+String SolderManager::getSolderStateString() const {
     if (m_finished) {
         return "Idle";
     }
@@ -122,7 +134,7 @@ String SolderManager::getSolderStateString() {
     return "Unknown";
 }
 
-String SolderManager::getTimeString() {
+String SolderManager::getTimeString() const {
 
     if (m_finished) {
         return "00:00";
@@ -149,3 +161,44 @@ String SolderManager::getTimeString() {
     return strMinutes + ":" + strSeconds;
 
 }
+
+void SolderManager::addListener(SolderManagerListener& listener) {
+    m_listeners.push_back(&listener);
+}
+
+void SolderManager::fireNewPoint(Point& p) {
+    for (auto l : m_listeners) {
+        l->newPoint(p);
+    }
+}
+
+void SolderManager::fireStarted(String profile) {
+    for (auto l : m_listeners) {
+        l->started(profile);
+    }
+}
+
+void SolderManager::fireStopped() {
+    for (auto l : m_listeners) {
+        l->stopped();
+    }
+}
+
+std::vector<const Point*> SolderManager::getAllPoints() const {
+    return m_allPoints;
+}
+
+void SolderManager::clearAllPoints() {
+    auto delPoint = [](const Point* p) { delete p; };
+
+    for_each(this->m_allPoints.begin(), this->m_allPoints.end(), delPoint);
+
+    m_allPoints.clear();
+}
+
+SolderManager::~SolderManager() {
+    clearAllPoints();
+}
+
+
+SolderManagerListener::~SolderManagerListener() {}
