@@ -55,6 +55,8 @@ void WebServer::stopped() {
 }
 
 WebServer::WebServer() {
+    SPIFFS.begin(true);
+    
     webServer = new AsyncWebServer(80);
     webSocket = new AsyncWebSocket("/ws");
     webServer->addHandler(webSocket);

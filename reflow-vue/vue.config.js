@@ -2,6 +2,7 @@
 const WebpackCdnPlugin = require('webpack-cdn-plugin');
 
 module.exports = {
+    publicPath: '/app',
     configureWebpack: {
       plugins: [
  //       new HtmlWebpackPlugin(),
@@ -10,8 +11,8 @@ module.exports = {
                 {
                     name: 'vue',
                     var: 'Vue',
-                    //path: 'dist/vue.runtime.min.js',
-                    path: 'dist/vue.js',
+                    path: 'dist/vue.runtime.min.js',
+//                    path: 'dist/vue.js',
                     prodUrl: 'https://cdn.jsdelivr.net/npm/:name@:version/:path'
                 },
                 {

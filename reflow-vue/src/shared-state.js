@@ -75,8 +75,6 @@ export default {
       for (var c of resp.data) {
         this.addMesure(this.pointToData(c))
       }
-    }).catch(e => {
-      console.log('Axios error', e)
     })
   }
 }

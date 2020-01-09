@@ -1,6 +1,6 @@
 <template>
   <div>
-    <h2>State: {{state}} ({{solderStateString}})</h2>
+    <h2>State: {{state}} {{solderStateStr}}</h2>
     <h2>Profile: {{profile}}</h2>
   </div>
 </template>
@@ -10,6 +10,14 @@ import state from '../shared-state'
 
 export default {
   mixins: [state],
-  name: 'Header'
+  name: 'Header',
+  computed: {
+    solderStateStr: function () {
+      if (this.state === 'Started') {
+        return `(${this.solderStateString})`
+      }
+      return ''
+    }
+  }
 }
 </script>
