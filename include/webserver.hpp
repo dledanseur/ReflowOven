@@ -25,6 +25,7 @@ class WebServer: private SolderManagerListener {
 
     WebServer(); 
     void addHandler(const char* endpoint, WebRequestMethod method, handler_ptr handler);
+    void addRedirect(const char* from, const char* to);
     void textMessage(String messageType, dataFormatter fomatter=NULL);
   public:
     static WebServer& getInstance(SolderManager* solderManager);

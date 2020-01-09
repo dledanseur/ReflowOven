@@ -56,13 +56,14 @@ void WebServer::stopped() {
 
 WebServer::WebServer() {
     SPIFFS.begin(true);
-    
+
     webServer = new AsyncWebServer(80);
     webSocket = new AsyncWebSocket("/ws");
     webServer->addHandler(webSocket);
     webServer->serveStatic("/app", SPIFFS, "/");
 
     m_solderManager->addListener(*this);
+    addRedirect("/", "/app/index.html");
     addHandler("/points", HTTP_GET, &getAllPoints);
     
     DefaultHeaders::Instance().addHeader("Access-Control-Allow-Origin", "*");
@@ -75,6 +76,12 @@ void WebServer::start() {
 }
 void WebServer::addHandler(const char* endpoint, WebRequestMethod method, handler_ptr handler) {
     webServer->on(endpoint, method, handler);
+}
+
+void WebServer::addRedirect(const char* from, const char* to) {
+    webServer->on(from, HTTP_GET, [to](AsyncWebServerRequest* request) {
+        request->redirect(to);
+    });
 }
 
 void WebServer::pointToJsonObject(const Point& p, JsonObject& o) {
