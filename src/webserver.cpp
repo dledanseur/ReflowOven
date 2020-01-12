@@ -4,17 +4,25 @@
 #include "AsyncJson.h"
 #include <ArduinoLog.h>
 
+
 #define CONTENT_TYPE_JSON "application/json"
 #define HTTP_OK 200
 
 WebServer* WebServer::m_instance = NULL;
 SolderManager* WebServer::m_solderManager = NULL;
+TouchManager* WebServer::m_touchManager = NULL;
+State* WebServer::m_state = NULL;
+AsyncWebServer* WebServer::webServer = NULL;
+AsyncWebSocket* WebServer::webSocket = NULL;
 
-WebServer& WebServer::getInstance(SolderManager* solderManager) {
+WebServer& WebServer::getInstance(SolderManager* solderManager, TouchManager* touchManager,
+                                  State* state) {
     if (m_instance != NULL) {
         return *m_instance;
     }
     m_solderManager = solderManager;
+    m_touchManager = touchManager;
+    m_state = state;
     m_instance = new WebServer();
     return *m_instance;
 }
@@ -59,10 +67,13 @@ WebServer::WebServer() {
 
     webServer = new AsyncWebServer(80);
     webSocket = new AsyncWebSocket("/ws");
+    webSocket->onEvent(onEvent);
     webServer->addHandler(webSocket);
     webServer->serveStatic("/app", SPIFFS, "/");
 
     m_solderManager->addListener(*this);
+    m_touchManager->addListener(this);
+
     addRedirect("/", "/app/index.html");
     addHandler("/points", HTTP_GET, &getAllPoints);
     
@@ -111,6 +122,59 @@ void WebServer::getAllPoints(AsyncWebServerRequest *request) {
 
 }
 
+void WebServer::ranCommand(Command& command) {
+    if (command.getTag() == UpCommand::TAG || command.getTag() == DownCommand::TAG) {
+        auto profile = m_state->currentProfile;
+        auto formatter = [profile](JsonObject& dest) { 
+            dest["profile"] = profile->name;
+        };
+
+        textMessage("changedProfile", formatter);
+    }
+}
+
+void WebServer::onEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventType type, void * arg, uint8_t *data, size_t len){
+    if(type == WS_EVT_CONNECT){
+        //client connected
+        auto profile = m_state->currentProfile;
+        auto formatter = [profile](JsonObject& dest) { 
+            dest["profile"] = profile->name;
+            dest["state"] = (m_solderManager->isFinished() ? "Stopped" : "Started");
+            dest["solderState"] = (int) m_solderManager->getSolderState();
+        };
+
+        textMessage("state", formatter);
+    }
+    else if(type == WS_EVT_DATA){
+        data[len] = 0;
+        Log.notice("Received message %s" CR,data);
+        StaticJsonDocument<50> doc;
+        DeserializationError error = deserializeJson(doc, data);
+
+        if (error) {
+            Log.warning("parseObject() failed");
+            return;
+        }
+
+        const char* type = doc["type"];
+        if (String(type) == "nextProfile") {
+            Log.verbose("Next profile");
+            m_touchManager->runRegisteredCommand(DownCommand::TAG);
+        }
+        else if (String(type) == "previousProfile") {
+            Log.verbose("Previous profile");
+            m_touchManager->runRegisteredCommand(UpCommand::TAG);
+        }
+        else if (String(type) == "start") {
+            Log.verbose("Start");
+            m_touchManager->runRegisteredCommand(StartCommand::TAG);
+        }
+        else if (String(type) == "stop") {
+            Log.verbose("Stop");
+            m_touchManager->runRegisteredCommand(StopCommand::TAG);
+        }
+    }
+}
 WebServer::~WebServer() {
     delete webSocket;
     webSocket = NULL;

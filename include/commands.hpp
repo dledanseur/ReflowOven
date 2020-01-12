@@ -26,8 +26,11 @@ class StopCommand : public Command {
     private:
     SolderManager& solderManager;
     public:
+    static const uint8_t TAG = 0x01;
+
     StopCommand(SolderManager& solderManager);
     virtual void execute(TouchManager& manager);
+    virtual uint8_t getTag();
 };
 
 class UpCommand : public Command {
@@ -35,8 +38,11 @@ class UpCommand : public Command {
     State& m_state;
 
     public:
+    static const uint8_t TAG = 0x02;
+
     UpCommand(State& state);
     virtual void execute(TouchManager& manager);
+    virtual uint8_t getTag();
 };
 
 class DownCommand : public Command {
@@ -44,8 +50,11 @@ class DownCommand : public Command {
     State& m_state;
 
     public:
+    static const uint8_t TAG = 0x03;
+
     DownCommand(State& state);
     virtual void execute(TouchManager& manager);
+    virtual uint8_t getTag();
 };
 
 class StartCommand : public Command {
@@ -54,8 +63,11 @@ class StartCommand : public Command {
     State& m_state;
 
     public:
+    static const uint8_t TAG = 0x04;
+
     StartCommand(SolderManager& solderManager, State& state);
     virtual void execute(TouchManager& manager);
+    virtual uint8_t getTag();
 };
 
 #endif

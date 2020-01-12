@@ -8,7 +8,14 @@
 #include "custom_sprite.h"
 #include "label.hpp"
 
-class Command;
+class TouchManager;
+
+class Command {
+    public:
+    virtual void execute(TouchManager& manager);
+    virtual uint8_t getTag();
+};
+
 class Button;
 
 class TimedCommand {
@@ -18,6 +25,11 @@ class TimedCommand {
     Command& cmd;
 };
 
+class CommandListener {
+    public:
+    virtual void ranCommand(Command& cmd);
+};
+
 class TouchManager {
     private:
     std::vector<Button*> buttons;
@@ -25,6 +37,7 @@ class TouchManager {
     std::vector<Image*> images;
     std::map<uint, Command*> registeredCommands;
     std::map<uint, TimedCommand*> scheduledCommands;
+    std::vector<CommandListener*> commandListeners;
     TFT_eSPI& tft;
     bool useSprites=false;
     CustomSprite* sprite=NULL;
@@ -37,6 +50,7 @@ class TouchManager {
     bool touchCalibrated = false;
 
     void createSprite();
+    void fireRanCommand(Command& command);
 
     public:
     TouchManager(TFT_eSPI& tft, uint32_t backgroundColor=TFT_BLACK, bool useSprites=false);
@@ -47,6 +61,7 @@ class TouchManager {
     Label& createLabel(const char* string, uint16_t x=0, uint16_t y=0, bool hidden=false);
     void registerCommand(uint tag, Command& cmd);
     Command& getRegisteredCommand(uint tag);
+    void runRegisteredCommand(uint tag);
     void scheduleCommand(uint tag, unsigned long in, Command& cmd);
     void cancelScheduledCommand(uint tag);
     void redraw();
@@ -56,6 +71,7 @@ class TouchManager {
     void init();
     bool getTouch(uint16_t& x, uint16_t& y, uint16_t sensivity);
     void calibrateTouch(uint16_t x1, uint16_t x2, uint16_t y1, uint16_t y2);
+    void addListener(CommandListener* listener);
 
     ~TouchManager();
 };

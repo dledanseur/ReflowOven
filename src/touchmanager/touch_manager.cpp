@@ -111,7 +111,11 @@ void TouchManager::loop() {
 
     if (pressed) {
         for (auto b: this->buttons) {
-            b->maybeTrigger(x, y, *this);
+            bool ran = b->maybeTrigger(x, y, *this);
+
+            if (ran) {
+                fireRanCommand(b->command);
+            }
         }
     }
 
@@ -123,6 +127,7 @@ void TouchManager::loop() {
 
         if (tcmd->when < now) {
             tcmd->cmd.execute(*this);
+            fireRanCommand(tcmd->cmd);
             Log.notice("Cancelling task %p" CR, tcmd);
             Serial.flush();
             it = scheduledCommands.erase(it);
@@ -144,6 +149,12 @@ Command& TouchManager::getRegisteredCommand(uint tag) {
     Command* cmd = registeredCommands[tag];
 
     return *cmd;
+}
+
+void TouchManager::runRegisteredCommand(uint tag) {
+    Command& cmd = getRegisteredCommand(tag);
+    cmd.execute(*this);
+    fireRanCommand(cmd);
 }
 
 void TouchManager::scheduleCommand(uint tag, unsigned long in, Command& cmd) {
@@ -217,4 +228,14 @@ void TouchManager::calibrateTouch(uint16_t x1, uint16_t x2, uint16_t y1, uint16_
     touch_y2 = y2;
 
     touchCalibrated = true;
+}
+
+void TouchManager::addListener(CommandListener* commandListener) {
+    commandListeners.push_back(commandListener);
+}
+
+void TouchManager::fireRanCommand(Command& command) {
+    for (auto c : commandListeners) {
+        c->ranCommand(command);
+    }
 }

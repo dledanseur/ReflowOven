@@ -59,6 +59,7 @@ class SolderManager {
     void loop();
     String getSolderStateString() const;
     String getTimeString() const;
+    SolderState getSolderState();
     double getExpectedTemperature() const;
     std::vector<const Point*> getAllPoints() const;
     void addListener(SolderManagerListener& listener);

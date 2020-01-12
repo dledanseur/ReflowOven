@@ -68,6 +68,12 @@ export default {
         this.setProfile(data.data.profile)
       } else if (data.type === 'stopped') {
         this.setState('Stopped')
+      } else if (data.type === 'changedProfile') {
+        this.profile = data.data.profile
+      } else if (data.type === 'state') {
+        this.profile = data.data.profile
+        this.state = data.data.state
+        this.solderState = data.data.solderState
       }
     }
 

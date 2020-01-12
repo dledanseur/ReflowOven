@@ -12,10 +12,13 @@ boolean Button::isTouchInside(uint16_t x, uint16_t y) {
 
 }
 
-void Button::maybeTrigger(uint16_t x, uint16_t y, TouchManager& manager) {
+boolean Button::maybeTrigger(uint16_t x, uint16_t y, TouchManager& manager) {
     if (!hidden && isTouchInside(x,y)) {
         this->command.execute(manager);
+        return true;
     }
+
+    return false;
 }
 
 void Button::display() {

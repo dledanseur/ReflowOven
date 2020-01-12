@@ -14,6 +14,8 @@
 #include "webserver.hpp"
 #include "wifi_manager.hpp"
 
+#define NO_TFT
+
 #define TEMP_CS 15
 #define TEMP_CLK -1
 #define TEMP_MISO -1
@@ -57,6 +59,7 @@ void setup() {
   Serial.begin(115200);
   
   Log.begin(LOG_LEVEL_NOTICE, &Serial);
+#ifndef NO_TFT
   pinMode(PEN_IRQ, INPUT);
   touchManager.init();
   touchManager.rotate(1);
@@ -77,10 +80,17 @@ void setup() {
 
   uint16_t calData[5] = { 248, 3871, 214, 3943, 0 };
   touchManager.calibrateTouch(calData[0], calData[1], calData[2], calData[3]);
+#endif
 
   wifiManager.connect(WIFI_SSID, WIFI_PASS);
   wifiManager.enableMdns("reflow-oven");
-  webserver = &WebServer::getInstance(&solderManager);
+
+  touchManager.registerCommand(UpCommand::TAG, upCmd);
+  touchManager.registerCommand(DownCommand::TAG, downCmd);
+  touchManager.registerCommand(StartCommand::TAG, startCmd);
+  touchManager.registerCommand(StopCommand::TAG, stopCmd);
+
+  webserver = &WebServer::getInstance(&solderManager, &touchManager, &state);
   webserver->start();
 
 }
@@ -124,10 +134,12 @@ void loop() {
   //uint16_t x,y;
   //tft.getTouchRaw(&x, &y);
   //Log.notice("Raw touch %i, %i" CR, x, y);
-  touchManager.loop();
   solderManager.loop();
+#ifndef NO_TFT
+  touchManager.loop();
   updateScreenStatus();
   touchManager.redraw();
   touchManager.flip();
+#endif
 
 }

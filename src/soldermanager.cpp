@@ -112,6 +112,10 @@ double SolderManager::getExpectedTemperature() const {
     return expectedTemperature;
 }
 
+SolderState SolderManager::getSolderState() {
+    return solderState;
+}
+
 String SolderManager::getSolderStateString() const {
     if (m_finished) {
         return "Idle";
