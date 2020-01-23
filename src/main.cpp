@@ -14,7 +14,7 @@
 #include "webserver.hpp"
 #include "wifi_manager.hpp"
 
-#define NO_TFT
+// #define NO_TFT
 
 #define TEMP_CS 15
 #define TEMP_CLK -1
@@ -58,7 +58,7 @@ void callback() {
 void setup() {
   Serial.begin(115200);
   
-  Log.begin(LOG_LEVEL_NOTICE, &Serial);
+  Log.begin(LOG_LEVEL_VERBOSE, &Serial);
 #ifndef NO_TFT
   pinMode(PEN_IRQ, INPUT);
   touchManager.init();

@@ -17,6 +17,7 @@ struct Point {
   SolderState state;
   double expected_temp;
   double mesured_temperature;
+  double internal_temp;
 };
 
 class SolderManagerListener {
@@ -29,14 +30,19 @@ class SolderManagerListener {
 
 class SolderManager {
   private:
+    static const uint32_t dutyTimeCycle = 2500;
+    static constexpr double maxSlope = 0.88;  // Slope at 100% duty cycle
+    uint32_t currentDutyTime = 0;
+
     const Profile* profile;
     uint32_t startTime;
-    uint32_t warmupEndTime;
+    uint32_t warmupEndTime = 0;
     TemperatureManager& temperatureManager;
     BuzzerManager& buzzerManager;
     bool m_finished=true;
     uint8_t ssrPin;
     uint32_t lastLoopMillis=0;
+    uint32_t lastPointMillis=0;
     SolderState solderState;
     double expectedTemperature=0;
 
@@ -49,6 +55,14 @@ class SolderManager {
 
     void clearAllPoints();
 
+    double calculateTempPoint(uint16_t ref, double temp, uint32_t now);
+    void computeNextState(uint16_t ref, double temp, uint32_t now);
+    double getStateSlope(SolderState state);
+    double getDutyCycleForState(SolderState state);
+    double getStateEndTime(SolderState solderState);
+    double getStateStartTime(SolderState solderState);
+    SolderState getNextState(SolderState solderState);
+  
   public:
     SolderManager(TemperatureManager& temperatureManager, 
                   BuzzerManager& buzzerManager, 

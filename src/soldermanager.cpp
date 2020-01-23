@@ -17,9 +17,12 @@ void SolderManager::start(const Profile* profile) {
     this->startTime = millis();
     this->m_finished = false;
     this->solderState = WARMUP;
+    this->warmupEndTime = 0;
     this->buzzerManager.triTone(300, 300, 300);
     this->fireStarted(profile->name);
     clearAllPoints();
+    digitalWrite(ssrPin, 1);
+    Log.verbose("Warming up" CR);
 }
 
 void SolderManager::stop() {
@@ -36,17 +39,99 @@ void SolderManager::loop() {
     uint32_t now = millis();
     
     uint32_t millisSinceStartup = now - startTime;
-
-    if (now-lastLoopMillis<1000) {  // don't do anything in less than one second
-        return;
-    }
+    
+    currentDutyTime += now - lastLoopMillis;
 
     lastLoopMillis = now;
 
     auto temp = this->temperatureManager.getThermcplTemp();
+    auto junctionTemp = this->temperatureManager.getColdjTemp();
 
     uint32_t ref = (float) (now - this->warmupEndTime) / 1000;
+
+    double expectedValue=calculateTempPoint(ref, temp, now);
+
+    double dutyTime = 1;
+    double diff = expectedValue - temp;
+
+
+    if (solderState == WARMUP || solderState == REFLOW) {
+        dutyTime = 1;
+    }
+    else {
+        // only consider positive differential influence
+        if (profile->p_temp_correction_range > -1 && diff > 0) {
+            dutyTime = diff/profile->p_temp_correction_range;
+        }
+        else {
+            dutyTime = 0;
+        }
+        double stateEndTime = getStateEndTime(solderState);
+        Log.verbose("State end time %D, ref is %i" CR, stateEndTime, ref);
+
+        if (stateEndTime - ref < profile->p_inertial_offset_time) {
+            SolderState nextState = getNextState(solderState);
+            dutyTime += getDutyCycleForState(nextState);
+            Log.verbose("Switching to next state %i duty time %D" CR, nextState, dutyTime);
+        }
+        else {
+            dutyTime += getDutyCycleForState(solderState);
+        }
+    }
     
+    computeNextState(ref, temp, now);
+
+    if (expectedValue == 0 && solderState == REFLOW) {
+        this->m_finished = true;
+    }
+
+    // let's compute the action (on/off)
+    if (!m_finished) {
+        // warm up
+        uint32_t dutyTimeOffset = currentDutyTime % dutyTimeCycle;
+        Log.verbose("Current duty time %i, duty time Cycle %i, duty Time %D" CR, 
+                    dutyTimeOffset, dutyTimeCycle, dutyTime);
+
+        if ( (double) dutyTimeOffset / dutyTimeCycle > dutyTime) {
+            // cool down
+            digitalWrite(ssrPin, 0);
+            Log.verbose("Cool down" CR);
+        }
+        else {
+            // cool down
+            digitalWrite(ssrPin, 1);
+            Log.verbose("Warm up" CR); 
+        }
+    }
+    else {
+        // cool down
+        digitalWrite(ssrPin, 0);
+        Log.verbose("Cool down" CR);
+    }
+
+    
+
+    if (now-lastPointMillis>1000) {
+        lastPointMillis = now;
+        this->expectedTemperature = expectedValue;
+        Point *p = new Point();
+        p->expected_temp = expectedValue;
+        p->mesured_temperature = temp;
+        p->state = solderState;
+        p->millis = millisSinceStartup;
+        p->internal_temp = junctionTemp;
+        
+
+        this->m_allPoints.push_back(p);
+        this->fireNewPoint(*p);
+    }
+    if (m_finished) {
+        buzzerManager.triTone(900,-300, 300);
+        this->fireStopped();
+    }
+}
+
+double SolderManager::calculateTempPoint(uint16_t ref, double temp, uint32_t now) {
     double expectedValue=0;
     if (solderState == WARMUP) {
         expectedValue = this->profile->p_warmup;
@@ -55,7 +140,7 @@ void SolderManager::loop() {
             warmupEndTime = now;
         }
     }
-    else if ( solderState == PREHEAT && ref < this->profile->p_preheat_time ) {
+    else if ( solderState != WARMUP && ref < this->profile->p_preheat_time ) {
         double slope = (double) (this->profile->p_preheat_temp - this->profile->p_warmup) / 
                                 (this->profile->p_preheat_time);
         
@@ -76,36 +161,95 @@ void SolderManager::loop() {
         
         expectedValue = slope * (ref - this->profile->p_soak_time) + this->profile->p_soak_temp;
     }
-    else {
-        this->m_finished = true;
-    }
-    double diff = expectedValue - temp;
-    if (diff > 1 && !m_finished) {
-        // warm up
-        digitalWrite(ssrPin, 1);
-        Log.verbose("Warming up" CR);
-    }
-    else if (diff < - 1 || m_finished) {
-        // cool down
-        digitalWrite(ssrPin, 0);
-        Log.verbose("Cool down" CR);
-    }
 
-    this->expectedTemperature = expectedValue;
-    Point *p = new Point();
-    p->expected_temp = expectedValue;
-    p->mesured_temperature = temp;
-    p->state = solderState;
-    p->millis = millisSinceStartup;
+    return expectedValue;
+}
 
-    this->m_allPoints.push_back(p);
-    this->fireNewPoint(*p);
-
-    if (m_finished) {
-        buzzerManager.triTone(900,-300, 300);
-        this->fireStopped();
+void SolderManager::computeNextState(uint16_t ref, double temp, uint32_t now) {
+    if (solderState == WARMUP) {
+        double expectedValue = this->profile->p_warmup;
+        if (temp>=expectedValue) {   
+            solderState = PREHEAT;
+            warmupEndTime = now;
+        }
     }
+    else if ( ref < this->profile->p_preheat_time ) {
+        solderState = PREHEAT;
+    }
+    else if ( ref < this->profile->p_soak_time ) {
+        solderState = SOACK;
+    }
+    else if (ref < this->profile->p_reflow_time) {
+        solderState = REFLOW;
+    }
+}
 
+/**
+ * Returns the slope for the given state.
+ **/ 
+double SolderManager::getStateSlope(SolderState state) {
+    if (state == WARMUP) {
+        return maxSlope;
+    }
+    else if (state == PREHEAT) {
+        return (double) (this->profile->p_preheat_temp - this->profile->p_warmup) / 
+                        (this->profile->p_preheat_time);
+    }
+    else if ( state == SOACK ) {
+        return (double) (this->profile->p_soak_temp - this->profile->p_preheat_temp) / 
+                        (this->profile->p_soak_time - this->profile->p_preheat_time);
+    }
+    else if ( state == REFLOW) {
+        return (double) (this->profile->p_reflow_temp - this->profile->p_soak_temp) / 
+                        (this->profile->p_reflow_time - this->profile->p_soak_time);
+    }
+}
+
+/**
+ * Return the duty cycle for the given state (between 0 and 1)
+ **/
+double SolderManager::getDutyCycleForState(SolderState state) {
+    double slope = getStateSlope(state);
+    double dutyCyle = slope / maxSlope;
+    Log.verbose("State slope for state %i is %D, duty Cycle %D" CR, state, slope, dutyCyle);
+    return dutyCyle;
+
+}
+
+double SolderManager::getStateStartTime(SolderState solderState) {
+    if (solderState == PREHEAT) {
+        return (warmupEndTime/1000);
+    }
+    else if (solderState == SOACK) {
+        return profile->p_preheat_time + (warmupEndTime/1000);
+    }
+    else if (solderState == REFLOW) {
+        return profile->p_soak_time + (warmupEndTime/1000);
+    }
+}
+
+double SolderManager::getStateEndTime(SolderState solderState) {
+    if (solderState == PREHEAT) {
+        return profile->p_preheat_time;
+    }
+    else if (solderState == SOACK) {
+        return profile->p_soak_time;
+    }
+    else if (solderState == REFLOW) {
+        return profile->p_reflow_time;
+    }
+}
+
+SolderState SolderManager::getNextState(SolderState solderState) {
+    if (solderState == WARMUP) {
+        return PREHEAT;
+    }
+    if (solderState == PREHEAT) {
+        return SOACK;
+    }
+    else if (solderState == SOACK) {
+        return REFLOW;
+    }
 }
 
 double SolderManager::getExpectedTemperature() const {

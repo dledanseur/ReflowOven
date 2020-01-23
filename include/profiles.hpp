@@ -12,6 +12,8 @@ struct Profile {
     uint16_t p_soak_time;
     uint16_t p_reflow_temp;
     uint16_t p_reflow_time;
+    uint16_t p_inertial_offset_time;
+    int16_t p_temp_correction_range;
 };
 
 #define PROFILE_NUMBER 2

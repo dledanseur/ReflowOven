@@ -98,6 +98,7 @@ void WebServer::addRedirect(const char* from, const char* to) {
 void WebServer::pointToJsonObject(const Point& p, JsonObject& o) {
     o["millis"] = p.millis;
     o["expectedTemperature"] = p.expected_temp;
+    o["internalTemperature"] = p.internal_temp;
     o["temperature"] = p.mesured_temperature;
     o["state"] = (int) p.state;
 }

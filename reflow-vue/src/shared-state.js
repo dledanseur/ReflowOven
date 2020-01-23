@@ -4,7 +4,8 @@ import { getApiUrl } from './tools'
 let titles = [
   { label: 'Time', type: 'number' },
   { label: 'Expected temperature', type: 'number' },
-  { label: 'Mesured temperature', type: 'number' }
+  { label: 'Mesured temperature', type: 'number' },
+  { label: 'Internal temperature', type: 'number' }
 ]
 
 /**
@@ -34,7 +35,8 @@ export default {
       return [
         data['millis'],
         data['expectedTemperature'],
-        data['temperature']
+        data['temperature'],
+        data['internalTemperature']
       ]
     }
   },
@@ -47,7 +49,7 @@ export default {
           return 'Preheat'
         case 2:
           return 'Soack'
-        case 4:
+        case 3:
           return 'Solder'
       }
     }
